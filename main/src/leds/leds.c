@@ -14,7 +14,7 @@
 
 
 struct _led_state led_state[LEDS_NUM] = {
-	{ LED_OFF, LED_OFF, LED_R, 	"LED_RED"  	},
+	//{ LED_OFF, LED_OFF, LED_R, 	"LED_RED"  	},
 	{ LED_OFF, LED_OFF, LED_G, 	"LED_GREEN"	},
 	{ LED_OFF, LED_OFF, LED_B, 	"LED_BLUE"	},
 };
@@ -28,7 +28,7 @@ void leds_init(void) {
 	//set as output mode
 	io_conf.mode = GPIO_MODE_OUTPUT;
 	//bit mask of the pins that you want to set
-	io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
+	//io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
 	io_conf.pull_down_en = 0;
 	//disable pull-up mode
 	io_conf.pull_up_en = 0;

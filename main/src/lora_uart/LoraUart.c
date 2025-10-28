@@ -63,7 +63,7 @@ static const char Lora_at_config  [][50] = {
 
 
 static QueueHandle_t uart_queue;
-extern QueueHandle_t xQueue_uart_lora;or
+extern QueueHandle_t xQueue_uart_lora;
 extern QueueHandle_t xQueue_get_data;
 extern QueueHandle_t xQueue_lora_send_data;
 
@@ -396,7 +396,7 @@ void lora_task(void *pvParameters) {
 	
 	vTaskDelay(1500 / portTICK_PERIOD_MS);  // Esperamos a que el módulo arranque completamente
 
-    board_led_operation(LED_R, LED_ON);
+    //board_led_operation(LED_R, LED_ON);
     state_next = Send_Lora_AT_Conf; // Saltamos directo a la configuración AT
 
     // 🔹 Enviamos primer comando de configuración
@@ -431,7 +431,7 @@ void lora_task(void *pvParameters) {
                     }
                 } else if (In_msg.signal == sData && strstr(In_msg.lora_rx, "+EVT:JOINED")) {
                     ESP_LOGI(TAG, "✅ Dispositivo unido correctamente.");
-                    board_led_operation(LED_R, LED_OFF);
+                    //board_led_operation(LED_R, LED_OFF);
                     state_next = Idle_lora;
                 } else if (In_msg.signal == sData && strstr(In_msg.lora_rx, "+EVT:JOIN_FAILED")) {
                     ESP_LOGW(TAG, "⚠️ Fallo en el Join. Reintentando una sola vez...");

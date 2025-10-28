@@ -17,7 +17,7 @@
 #define LEDS_NUM 	3
 
 /************* (Mascara de selección de pines) *************/
-#define GPIO_OUTPUT_PIN_SEL  ((1ULL<<LED_R) | (1ULL<<LED_G) | (1ULL<<LED_B) )
+//#define GPIO_OUTPUT_PIN_SEL  ((1ULL<<LED_R) | (1ULL<<LED_G) | (1ULL<<LED_B) )
 
 
 /************* (Definición de estructura de LEDS) *************/
