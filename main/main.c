@@ -24,6 +24,11 @@
 #include "../library/include/conn.h"
 #include "gatewayUart.h"
 
+#include "driver/uart.h"
+#define UART_PORT_LORA UART_NUM_1   // usa el mismo puerto de tu init_uart()
+#define BUF_SIZE 128
+
+
 #define TAG_APP                     "METRUM"
 #define TAG_LOG_SERVER              "LOG"
 #define EXAMPLE_VERSION             "1.0.0.APP.ICESI"
@@ -77,6 +82,8 @@ void app_main(void)
     xTaskCreate(uart_task, "uart_task", 4096, NULL, 10, NULL);
     xTaskCreate(lora_task, "lora_task", 4096, NULL, 10, NULL);
     xTaskCreate(lora_send_data_task, "lora_send_data_task", 4096, NULL, 10, NULL);
+
+    xTaskCreate(lora_check_info_task, "lora_check_info_task", 2048, NULL, 5, NULL);
 }
 
 /*
@@ -96,5 +103,31 @@ void app_main(void)
  *  5. Creación de tareas LoRa para manejo paralelo de UART y transmisión de datos.
  */
 
+// ==== Diagnóstico LoRa: leer APPEUI ====
+
+void lora_check_info_task(void *pvParameters)
+{
+    const char *cmd = "AT+APPEUI=?\r\n";
+    uint8_t rx_data[BUF_SIZE];
+    
+    ESP_LOGI("LORA_CHECK", "Enviando comando para leer APPEUI...");
+    
+    // Envía el comando AT
+    uart_write_bytes(UART_PORT_LORA, cmd, strlen(cmd));
+
+    // Espera un poco para que responda
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    // Lee lo que responda el módulo
+    int len = uart_read_bytes(UART_PORT_LORA, rx_data, BUF_SIZE - 1, pdMS_TO_TICKS(1000));
+    if (len > 0) {
+        rx_data[len] = '\0';
+        ESP_LOGI("LORA_CHECK", "Respuesta del módulo: %s", rx_data);
+    } else {
+        ESP_LOGW("LORA_CHECK", "No se recibió respuesta del módulo LoRa.");
+    }
+
+    vTaskDelete(NULL); // elimina la tarea después de ejecutarse
+}
 
 
