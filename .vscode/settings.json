@@ -1,0 +1,23 @@
+{
+  "C_Cpp.intelliSenseEngine": "Tag Parser",
+  "files.associations": {
+    "board.h": "c",
+    "conn.h": "c",
+    "gatewayUart.h": "c",
+    "logServer.h": "c",
+    "gpio.h": "c",
+    "task.h": "c",
+    "freertos.h": "c",
+    "freertosconfig.h": "c",
+  },
+
+  "idf.flashType": "UART",
+  "idf.openOcdConfigs": [
+    //"interface/ftdi/esp32_devkitj_v1.cfg",
+    //"target/esp32.cfg"
+    "board/esp32-jlink.cfg"
+  ],
+  "idf.adapterTargetName": "esp32",
+  "idf.portWin": "COM18",
+  "idf.pythonInstallPath": "C:\\Espressif\\tools\\idf-python\\3.11.2\\python.exe",
+}
