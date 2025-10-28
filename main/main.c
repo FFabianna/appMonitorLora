@@ -40,6 +40,33 @@ QueueHandle_t xQueue_lora_send_data;
 QueueHandle_t xQueue_get_data;
 ///
 
+
+void lora_check_info_task(void *pvParameters)
+{
+    const char *cmd = "AT+APPEUI=?\r\n";
+    uint8_t rx_data[BUF_SIZE];
+    
+    ESP_LOGI("LORA_CHECK", "Enviando comando para leer APPEUI...");
+    
+    // Envía el comando AT
+    uart_write_bytes(UART_PORT_LORA, cmd, strlen(cmd));
+
+    // Espera un poco para que responda
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    // Lee lo que responda el módulo
+    int len = uart_read_bytes(UART_PORT_LORA, rx_data, BUF_SIZE - 1, pdMS_TO_TICKS(1000));
+    if (len > 0) {
+        rx_data[len] = '\0';
+        ESP_LOGI("LORA_CHECK", "Respuesta del módulo: %s", rx_data);
+    } else {
+        ESP_LOGW("LORA_CHECK", "No se recibió respuesta del módulo LoRa.");
+    }
+
+    vTaskDelete(NULL); // elimina la tarea después de ejecutarse
+}
+
+
 void app_main(void)
 {
     ESP_LOGI(TAG_APP, "DLMS/COSEM Library %s", driver_version);
@@ -105,29 +132,5 @@ void app_main(void)
 
 // ==== Diagnóstico LoRa: leer APPEUI ====
 
-void lora_check_info_task(void *pvParameters)
-{
-    const char *cmd = "AT+APPEUI=?\r\n";
-    uint8_t rx_data[BUF_SIZE];
-    
-    ESP_LOGI("LORA_CHECK", "Enviando comando para leer APPEUI...");
-    
-    // Envía el comando AT
-    uart_write_bytes(UART_PORT_LORA, cmd, strlen(cmd));
-
-    // Espera un poco para que responda
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    // Lee lo que responda el módulo
-    int len = uart_read_bytes(UART_PORT_LORA, rx_data, BUF_SIZE - 1, pdMS_TO_TICKS(1000));
-    if (len > 0) {
-        rx_data[len] = '\0';
-        ESP_LOGI("LORA_CHECK", "Respuesta del módulo: %s", rx_data);
-    } else {
-        ESP_LOGW("LORA_CHECK", "No se recibió respuesta del módulo LoRa.");
-    }
-
-    vTaskDelete(NULL); // elimina la tarea después de ejecutarse
-}
 
 

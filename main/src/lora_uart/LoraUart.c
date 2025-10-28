@@ -49,9 +49,9 @@ static const char Lora_at_config  [][50] = {
 	{"AT+CLASS=C\r\n"},                // Clase C para TTN
 	{"AT+NJM=1\r\n"},
 	{"AT+DR=5\r\n"},                   
-	{"AT+BAND=8\r\n"},                 
+	{"AT+BAND=6\r\n"},                 
 	{"AT+MASK=0000\r\n"},              
-	{"AT+CHE=8:9:10:11:12:13:14:15\r\n"},   // Canales EU868
+	{"AT+CHE=1:2:3:4:5:6:7:8\r\n"},   
 	{"AT+CFM=1\r\n"},
     {"AT+DEVEUI=70B3D57ED0073ACB\r\n"},        
     {"AT+APPKEY=95B97967B65F5A6738026EBB68FD325C\r\n"},        
@@ -63,7 +63,7 @@ static const char Lora_at_config  [][50] = {
 
 
 static QueueHandle_t uart_queue;
-extern QueueHandle_t xQueue_uart_lora;
+extern QueueHandle_t xQueue_uart_lora;or
 extern QueueHandle_t xQueue_get_data;
 extern QueueHandle_t xQueue_lora_send_data;
 
@@ -166,8 +166,7 @@ void lora_send_data_task(void *pvParameters)
 	ESP_LOGI(TAG, "Task Delete");
 	vTaskDelete(NULL);
 }
-
-void lora_task(void *pvParameters) {
+/*void lora_task(void *pvParameters) {
 	msg_t In_msg;
 	msg_t	Out_msg;
 	int count = 0;
@@ -375,6 +374,99 @@ void lora_task(void *pvParameters) {
 	ESP_LOGI(TAG, "Task Delete");
 	vTaskDelete(NULL);
 }
+*/
+
+void lora_task(void *pvParameters) {
+    msg_t In_msg;
+    msg_t Out_msg;
+    int count = 0;
+    int reset_count = 0;
+    bool config_done = false;
+
+    LORA_STATE_ENUM state, state_next;
+    Out_msg.lora_tx = (char *) malloc(BUFF_SIZE_TX);
+    Out_msg.signal = sReset;
+    Out_msg.value = 0;
+
+    // 🔹 Solo hacemos el doble reset inicial una vez
+    ESP_LOGI(TAG, "🔁 Inicializando módulo LoRa con doble reset...");
+    reset_lora_func(); // Primer reset
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    reset_lora_func(); // Segundo reset
+
+    board_led_operation(LED_R, LED_ON);
+    state_next = Send_Lora_AT_Conf; // Saltamos directo a la configuración AT
+
+    // 🔹 Enviamos primer comando de configuración
+    strcpy(Out_msg.lora_tx, Lora_at_config[count]);
+    uart_write_bytes(UART_NUM, (const void *) Out_msg.lora_tx, strlen(Out_msg.lora_tx));
+    ESP_LOGI(TAG, "Enviando config inicial: %s", Out_msg.lora_tx);
+    state_next = Wating_AT_Response;
+
+    for (;;) {
+        if (xQueueReceive(xQueue_uart_lora, &In_msg, portMAX_DELAY)) {
+            state = state_next;
+            printf("Lora_Task rcvd [%s(%d)] in state [%s]\n",
+                   TO_LORA_STRING[In_msg.signal], In_msg.value, LORA_STATE_STRING[state]);
+            fflush(stdout);
+
+            switch (state) {
+            case Wating_AT_Response:
+                if (In_msg.signal == sData && strstr(In_msg.lora_rx, "OK")) {
+                    count++;
+                    if (count < SIZE_ARRAY(Lora_at_config)) {
+                        // Siguiente comando AT
+                        strcpy(Out_msg.lora_tx, Lora_at_config[count]);
+                        uart_write_bytes(UART_NUM, (const void *) Out_msg.lora_tx, strlen(Out_msg.lora_tx));
+                        ESP_LOGI(TAG, "AT enviado (%d/%d): %s", count, SIZE_ARRAY(Lora_at_config), Out_msg.lora_tx);
+                        state_next = Wating_AT_Response;
+                    } else {
+                        // 🔹 Finalizamos configuración AT
+                        config_done = true;
+                        ESP_LOGI(TAG, "✅ Configuración AT completa.");
+                        state_next = Wating_Make_Join;
+                        count = 0;
+                    }
+                } else if (In_msg.signal == sData && strstr(In_msg.lora_rx, "+EVT:JOINED")) {
+                    ESP_LOGI(TAG, "✅ Dispositivo unido correctamente.");
+                    board_led_operation(LED_R, LED_OFF);
+                    state_next = Idle_lora;
+                } else if (In_msg.signal == sData && strstr(In_msg.lora_rx, "+EVT:JOIN_FAILED")) {
+                    ESP_LOGW(TAG, "⚠️ Fallo en el Join. Reintentando una sola vez...");
+                    if (reset_count < 1) {
+                        reset_lora_func();
+                        reset_count++;
+                        strcpy(Out_msg.lora_tx, "AT+JOIN=1:0:10:8\r\n");
+                        uart_write_bytes(UART_NUM, (const void *) Out_msg.lora_tx, strlen(Out_msg.lora_tx));
+                        state_next = Wating_Make_Join;
+                    } else {
+                        ESP_LOGE(TAG, "❌ Join falló dos veces. Deteniendo reintentos.");
+                        state_next = Idle_lora;
+                    }
+                }
+                break;
+
+            case Idle_lora:
+                if (In_msg.signal == sSend_Lora_Frame) {
+                    uart_write_bytes(UART_NUM, (const void *) In_msg.lora_tx, strlen(In_msg.lora_tx));
+                    board_led_operation(LED_B, LED_ON);
+                    state_next = Wating_Send_Lora_Frame;
+                }
+                break;
+
+            default:
+                state_next = Idle_lora;
+                break;
+            }
+
+            printf("LORA next state is [%s]\n", LORA_STATE_STRING[state_next]);
+            fflush(stdout);
+        }
+    }
+
+    free(Out_msg.lora_tx);
+    vTaskDelete(NULL);
+}
 
 
 void uart_task(void *pvParameters)
@@ -500,8 +592,7 @@ void reset_lora_func( void )
 	gpio_set_level(RESET_LORA, LORA_ON);
 	vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
-
-void read_lora_credentials( void )
+ /* void read_lora_credentials( void )
 {
 
 	reset_lora_func();
@@ -515,7 +606,21 @@ void read_lora_credentials( void )
 	uart_write_bytes(UART_NUM, (const void *) lora_tx, strlen(lora_tx));
 	vTaskDelay(100 / portTICK_PERIOD_MS);
 	xQueueReset(xQueue_uart_lora);
+}*/
+
+void read_lora_credentials(void)
+{
+    printf("Read Lora read_lora_credentials\n");
+    char lora_tx[20] = {0};
+    strcpy(lora_tx, "AT+DEVEUI=?\r\n");
+    uart_write_bytes(UART_NUM, (const void *) lora_tx, strlen(lora_tx));
+    strcpy(lora_tx, "AT+APPEUI=?\r\n");
+    uart_write_bytes(UART_NUM, (const void *) lora_tx, strlen(lora_tx));
+    strcpy(lora_tx, "AT+APPKEY=?\r\n");
+    uart_write_bytes(UART_NUM, (const void *) lora_tx, strlen(lora_tx));
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 }
+
 
 void create_lora_hex_string(int msj_num, float float_val_1, float float_val_2, char *dst)
 {
