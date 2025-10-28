@@ -40,7 +40,7 @@ typedef struct {
 /**************************************************************/
 static SERIAL_TYPE HW_type[MAX_SERIAL_PORTS] = {TYPE_RS485};
 static uart_port_t HW_uart[MAX_SERIAL_PORTS] = {UART_NUM_1};
-static gpio_num_t HW_tx[MAX_SERIAL_PORTS] = {GPIO_NUM_10};
-static gpio_num_t HW_rx[MAX_SERIAL_PORTS] = {GPIO_NUM_9};
-static gpio_num_t HW_driver[MAX_SERIAL_PORTS] = {GPIO_NUM_19};
+static gpio_num_t HW_tx[MAX_SERIAL_PORTS] = {GPIO_NUM_23};
+static gpio_num_t HW_rx[MAX_SERIAL_PORTS] = {GPIO_NUM_22};
+static gpio_num_t HW_driver[MAX_SERIAL_PORTS] = {GPIO_NUM_18};
 /**************************************************************/
