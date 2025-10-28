@@ -11,8 +11,8 @@
 #define	UART_NUM 							UART_NUM_2
 #define BAUD_RATE 						115200
 
-#define UART_PIN_TX 					33
-#define UART_PIN_RX 					32
+#define UART_PIN_TX 					17
+#define UART_PIN_RX 					16
 #define RESET_LORA 						GPIO_NUM_27
 #define LORA_ON  							1
 #define LORA_OFF 							0
@@ -393,6 +393,8 @@ void lora_task(void *pvParameters) {
     reset_lora_func(); // Primer reset
     vTaskDelay(500 / portTICK_PERIOD_MS);
     reset_lora_func(); // Segundo reset
+	
+	vTaskDelay(1500 / portTICK_PERIOD_MS);  // Esperamos a que el módulo arranque completamente
 
     board_led_operation(LED_R, LED_ON);
     state_next = Send_Lora_AT_Conf; // Saltamos directo a la configuración AT

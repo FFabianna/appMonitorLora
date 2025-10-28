@@ -7,7 +7,7 @@
 #define LEDS_H
 
 /************* (Definiciones de pines asociados a los leds) *************/
-#define LED_R 			GPIO_NUM_16
+//#define LED_R 			GPIO_NUM_16
 #define LED_G 			GPIO_NUM_2
 #define LED_B 		    GPIO_NUM_4
 
