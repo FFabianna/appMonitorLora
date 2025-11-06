@@ -44,20 +44,21 @@ const char* LORA_SEND_STATE_STRING[] = {
     "Idle_sending", "Send_Data", "Wating_Send_Data"
 };
 
-static const char Lora_at_config  [][50] = {
-	{"AT+ATM\r\n"},
-	{"AT+CLASS=C\r\n"},                // Clase C para TTN
-	{"AT+NJM=1\r\n"},
-	{"AT+DR=5\r\n"},                   
-	{"AT+BAND=6\r\n"},                 
-	{"AT+MASK=0000\r\n"},              
-	{"AT+CHE=1:2:3:4:5:6:7:8\r\n"},   
-	{"AT+CFM=1\r\n"},
-    {"AT+DEVEUI=70B3D57ED0073ACB\r\n"},        
-    {"AT+APPKEY=95B97967B65F5A6738026EBB68FD325C\r\n"},        
-    {"AT+APPEUI=AB870A94E0D624BE\r\n"},        
-	{"AT+RX2DR=8\r\n"},
-	{"AT+JOIN=1:0:10:8\r\n"},
+static const char Lora_at_config[][50] = {
+    {"AT+ATM\r\n"},                    // Modo LoRaWAN
+    {"AT+CLASS=A\r\n"},                // Clase A (recomendada para TTN)
+    {"AT+NJM=1\r\n"},                  // OTAA
+    {"AT+DR=3\r\n"},                   // Data Rate (DR3 = SF9 125kHz)
+    {"AT+BAND=8\r\n"},                 // AU915
+    {"AT+MASK=0001\r\n"},              // Sub-Band 1 (canales 8–15)
+    {"AT+CHE=8:9:10:11:12:13:14:15\r\n"}, // Canales del subband 1
+    {"AT+CFM=1\r\n"},                  // Confirmed uplinks habilitados
+    {"AT+DEVEUI=70B3D57ED0073AF5\r\n"},     // DevEUI
+    {"AT+APPKEY=95B97967B65F5A6738026EBB68FD325C\r\n"}, // AppKey
+    {"AT+APPEUI=AB870A94E0D624BE\r\n"},     // AppEUI
+    {"AT+RX2DR=8\r\n"},                // RX2 Data Rate = SF12 500kHz (TTN)
+    {"AT+RX2FQ=923300000\r\n"},        // RX2 Frequency = 923.3 MHz
+    {"AT+JOIN=1:0:10:8\r\n"}           // Join OTAA: modo=1, intentos=10, DR=8
 };
 
 

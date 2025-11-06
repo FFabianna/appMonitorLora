@@ -9,6 +9,7 @@
 
 #define Board_PIN_HIGH              0x01
 #define Board_PIN_LOW               0x00
+#define CFG_au915 1
 
 typedef enum
 {
