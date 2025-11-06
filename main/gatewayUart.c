@@ -34,7 +34,8 @@
 static tcpSerial serial[MAX_SERIAL_PORTS];
 
 #define MAX_SIZE_FRAME  1024
-char frameHDLC[MAX_SIZE_FRAME];
+extern char frameHDLC[MAX_SIZE_FRAME];
+extern QueueHandle_t xQueue_lora_send_data
 int frameSize;
 TaskHandle_t printTaskHd;
 SemaphoreHandle_t xMutex = NULL;
@@ -51,6 +52,8 @@ void GatewayUartFxn(void *arg0);
 
 static int GatewayConfigSerialPort(uint8_t index, uint8_t modeDLMS, uint16_t baudrate);
 
+#include "lorauart.h"   // importante: aquí está la definición de xQueue_lora_send_data
+
 void print_frames_task(void *arg0)
 {
     BaseType_t xResult;
@@ -58,29 +61,46 @@ void print_frames_task(void *arg0)
 
     memset(frameHDLC, 0, MAX_SIZE_FRAME);
 
-    /* In a production environment, this task control must be improved. */
     while (true) 
     {            
-        /* Check new data */
-        xResult = xTaskNotifyWait( pdFALSE,     /* Don't clear bits on entry. */
-                    ULONG_MAX,                  /* Clear all bits on exit. */
-                    &ulNotifiedValue,           /* Stores the notified value. */
-                    portMAX_DELAY);
+        /* Esperar notificación de nueva trama lista */
+        xResult = xTaskNotifyWait(pdFALSE, ULONG_MAX, &ulNotifiedValue, portMAX_DELAY);
 
-        if(xResult == pdPASS)
+        if (xResult == pdPASS)
         {
             xSemaphoreTake(xMutex, portMAX_DELAY);
 
-            printf(frameHDLC);            
-            vTaskDelay(5 / portTICK_PERIOD_MS);
+            printf("Trama recibida: %s\n", frameHDLC);
+            vTaskDelay(pdMS_TO_TICKS(5));
 
+            
+            msg_t msg;   // estructura ya definida en lorauart.h
+            memset(&msg, 0, sizeof(msg));
+
+            msg.signal = sSend_Data;   // indicamos que es un envío de datos
+            msg.lora_tx = frameHDLC;   // apuntamos al buffer de datos
+            msg.lora_tx_length = strlen(frameHDLC);
+            xQueueSend(xQueue_lora_send_data, &msg, portMAX_DELAY);
+
+            if (xQueueSend(xQueue_lora_send_data, &msg, 0) == pdPASS)
+            {
+                printf(" Trama enviada a la cola LoRa (%d bytes)\n", msg.lora_tx_length);
+            }
+            else
+            {
+                printf(" Cola LoRa llena, no se pudo encolar el mensaje\n");
+            }
+        }
+            
+            // ---  Limpiar el buffer local ---
             memset(frameHDLC, 0, MAX_SIZE_FRAME);
             frameSize = 0;
 
             xSemaphoreGive(xMutex);
         }
     }
-}
+
+
 
 void GatewayUartFxn(void *arg0)
 {  

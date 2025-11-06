@@ -96,6 +96,9 @@ void app_main(void)
     /* Crear colas */
     xQueue_uart_lora = xQueueCreate(QUEQUE_LENGTH, sizeof(msg_t));
     xQueue_lora_send_data = xQueueCreate(QUEQUE_LENGTH, sizeof(msg_t));
+    if (xQueue_lora_send_data == NULL) {
+    ESP_LOGE("LORAUART", "Error al crear cola de envío LoRa");
+}
     xQueue_get_data = xQueueCreate(QUEQUE_LENGTH, sizeof(msg_t));
 
     if (xQueue_uart_lora == NULL || xQueue_lora_send_data == NULL || xQueue_get_data == NULL) {
