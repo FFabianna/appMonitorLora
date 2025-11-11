@@ -16,6 +16,7 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
+#include <stdint.h>
 
 #include "driver/uart.h"
 #include "driver/gpio.h"
@@ -80,6 +81,60 @@ bool lora_send_command(const char* command, char* response, int response_size, i
     return false;
 }
 
+// Empaquetado de datos del medidor en payload binario y conversión a HEX
+static void u16_to_hex_be(uint16_t v, char* out)
+{
+    static const char* hex = "0123456789ABCDEF";
+    out[0] = hex[(v >> 12) & 0xF];
+    out[1] = hex[(v >> 8) & 0xF];
+    out[2] = hex[(v >> 4) & 0xF];
+    out[3] = hex[(v) & 0xF];
+}
+
+static uint16_t encode_fp(float value, float scale)
+{
+    int32_t iv = (int32_t)(value * scale + (value >= 0 ? 0.5f : -0.5f));
+    if (iv < 0) iv = 0;
+    if (iv > 0xFFFF) iv = 0xFFFF;
+    return (uint16_t)iv;
+}
+
+// Construye payload HEX con: VA,VB,VC, IA,IB,IC, Freq, PtotImp (16 bytes)
+static bool build_meter_payload_hex(char* hex_out, size_t hex_out_size)
+{
+    if (hex_out_size < (16*2 + 1)) return false; // 16 bytes -> 32 hex + NUL
+    GW_MeterSnapshot snap;
+    int tries = 0;
+    while (tries < 10) {
+        if (GW_GetLatestSnapshot(&snap)) break;
+        vTaskDelay(pdMS_TO_TICKS(500));
+        tries++;
+    }
+    if (tries >= 10) return false;
+
+    uint16_t va = encode_fp(snap.voltage[0], 100.0f);
+    uint16_t vb = encode_fp(snap.voltage[1], 100.0f);
+    uint16_t vc = encode_fp(snap.voltage[2], 100.0f);
+    uint16_t ia = encode_fp(snap.current[0], 100.0f);
+    uint16_t ib = encode_fp(snap.current[1], 100.0f);
+    uint16_t ic = encode_fp(snap.current[2], 100.0f);
+    uint16_t fr = encode_fp(snap.frequency , 100.0f);
+    uint16_t pt = encode_fp(snap.active_power_total_import, 10.0f);
+
+    // Escribir 16 bytes en orden fijo (big-endian a nivel hex)
+    char* p = hex_out;
+    u16_to_hex_be(va, p); p += 4;
+    u16_to_hex_be(vb, p); p += 4;
+    u16_to_hex_be(vc, p); p += 4;
+    u16_to_hex_be(ia, p); p += 4;
+    u16_to_hex_be(ib, p); p += 4;
+    u16_to_hex_be(ic, p); p += 4;
+    u16_to_hex_be(fr, p); p += 4;
+    u16_to_hex_be(pt, p); p += 4;
+    *p = '\0';
+    return true;
+}
+
 void lora_ttn_test_task(void *pvParameters) {
     ESP_LOGI("LORA_TEST", "=== TEST TTN CONFIGURACIÓN COMPLETA ===");
     
@@ -120,7 +175,7 @@ void lora_ttn_test_task(void *pvParameters) {
     };
     
     // Aplicar configuración del módulo
-    for(int i = 0; i < 10; i++) {
+    for(size_t i = 0; i < sizeof(module_config)/sizeof(module_config[0]); i++) {
         ESP_LOGI("LORA_TEST", "Configurando módulo: %s", module_config[i]);
         lora_uart_clean_safe(1000);
         lora_uart_write_safe(module_config[i], 2000);
@@ -294,10 +349,18 @@ void lora_ttn_test_task(void *pvParameters) {
                             ESP_LOGI("LORA_TEST", "🎉🎉🎉 JOIN EXITOSO en intento %d!", join_attempt);
                             join_success = true;
                             
-                            // Enviar mensaje de prueba inmediatamente
+                            // Enviar datos del medidor inmediatamente
                             vTaskDelay(5000 / portTICK_PERIOD_MS);
-                            lora_uart_write_safe("AT+SEND=1:48656C6C6F5F4C6F5261\r\n", 2000); // "Hello_LoRa"
-                            ESP_LOGI("LORA_TEST", "📤 Mensaje de prueba enviado");
+                            char hex_payload[33];
+                            if (build_meter_payload_hex(hex_payload, sizeof(hex_payload))) {
+                                char cmd[64];
+                                // FPort 1
+                                snprintf(cmd, sizeof(cmd), "AT+SEND=1:%s\r\n", hex_payload);
+                                lora_uart_write_safe(cmd, 2000);
+                                ESP_LOGI("LORA_TEST", "📤 Datos enviados: %s", hex_payload);
+                            } else {
+                                ESP_LOGW("LORA_TEST", "No hay datos del medidor aún; omitiendo envío inicial");
+                            }
                             break;
                         } else if(strstr(join_response, "JOIN FAILED") || 
                                  strstr(join_response, "FAIL") ||

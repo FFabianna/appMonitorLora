@@ -40,6 +40,10 @@ TaskHandle_t printTaskHd;
 SemaphoreHandle_t xMutex = NULL;
 uart_config_t uart_config;
 
+// Snapshot compartido de últimas mediciones para LoRa
+static GW_MeterSnapshot s_snapshot;
+static SemaphoreHandle_t s_snapshotMutex = NULL;
+
 static int GatewayInitSerial(uint8_t index);
 static void GatewayDriverCtrl(uint32_t value, tcpSerial *pSerial);
 static int GatewayCreateTask(uint32_t index);
@@ -244,6 +248,32 @@ void GatewayUartFxn(void *arg0)
             ESP_LOGI(TAG_GW, "Register\tReactive power import C\t%8.2f", data.reactive_power_import[METER_PHASE_C]);
             ESP_LOGI(TAG_GW, "Register\tReactive power export C\t%8.2f", data.reactive_power_export[METER_PHASE_C]);
                                     
+            /* Actualizar snapshot compartido para envío LoRa */
+            if (s_snapshotMutex == NULL) {
+                s_snapshotMutex = xSemaphoreCreateMutex();
+            }
+            if (s_snapshotMutex != NULL) {
+                if (xSemaphoreTake(s_snapshotMutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+                    s_snapshot.voltage[0] = data.voltage[METER_PHASE_A];
+                    s_snapshot.voltage[1] = data.voltage[METER_PHASE_B];
+                    s_snapshot.voltage[2] = data.voltage[METER_PHASE_C];
+                    s_snapshot.current[0] = data.current[METER_PHASE_A];
+                    s_snapshot.current[1] = data.current[METER_PHASE_B];
+                    s_snapshot.current[2] = data.current[METER_PHASE_C];
+                    s_snapshot.frequency = data.frequency;
+                    s_snapshot.power_factor[0] = data.power_factor[METER_PHASE_A];
+                    s_snapshot.power_factor[1] = data.power_factor[METER_PHASE_B];
+                    s_snapshot.power_factor[2] = data.power_factor[METER_PHASE_C];
+                    s_snapshot.active_power_total_import  = data.active_power_total_import;
+                    s_snapshot.active_power_total_export  = data.active_power_total_export;
+                    s_snapshot.reactive_power_total_import = data.reactive_power_total_import;
+                    s_snapshot.reactive_power_total_export = data.reactive_power_total_export;
+                    s_snapshot.apparent_power_total = data.apparent_power_total;
+                    s_snapshot.valid = true;
+                    xSemaphoreGive(s_snapshotMutex);
+                }
+            }
+
             /* Angle */
             ESP_LOGI(TAG_GW, "Register\tVoltage Angle B to A\t%8.2f", data.voltageAngleB2A);
             ESP_LOGI(TAG_GW, "Register\tVoltage Angle C to A\t%8.2f", data.voltageAngleC2A);
@@ -649,4 +679,19 @@ static int GatewayConfigUart(uint8_t modeDLMS, uint16_t baudrate)
     rc = GatewayConfigSerialPort(0, modeDLMS, baudrate);
 
     return rc;
+}
+
+bool GW_GetLatestSnapshot(GW_MeterSnapshot* out)
+{
+    if (!out) return false;
+    if (s_snapshotMutex == NULL) return false;
+    bool ok = false;
+    if (xSemaphoreTake(s_snapshotMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (s_snapshot.valid) {
+            *out = s_snapshot;
+            ok = true;
+        }
+        xSemaphoreGive(s_snapshotMutex);
+    }
+    return ok;
 }
