@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "gatewayUart.c"
         "main.c"
+        "src/lora_uart/lora_uart_functions.c"   
         "src/lora_uart/LoraUart.c"
         "src/leds/leds.c"
     INCLUDE_DIRS
@@ -14,4 +15,4 @@ idf_component_register(
 add_prebuilt_library(libdlms "../library/libdlms.a"
              PRIV_REQUIRES log)
 
-target_link_libraries(${COMPONENT_LIB} INTERFACE libdlms)
+target_link_libraries(${COMPONENT_LIB} INTERFACE libdlms)   
