@@ -349,19 +349,21 @@ void lora_ttn_test_task(void *pvParameters) {
                             ESP_LOGI("LORA_TEST", "🎉🎉🎉 JOIN EXITOSO en intento %d!", join_attempt);
                             join_success = true;
                             
-                            // Enviar datos del medidor inmediatamente
+                            // Enviar datos del medidor inmediatamente y luego cada 2 minutos
                             vTaskDelay(5000 / portTICK_PERIOD_MS);
-                            char hex_payload[33];
-                            if (build_meter_payload_hex(hex_payload, sizeof(hex_payload))) {
-                                char cmd[64];
-                                // FPort 1
-                                snprintf(cmd, sizeof(cmd), "AT+SEND=1:%s\r\n", hex_payload);
-                                lora_uart_write_safe(cmd, 2000);
-                                ESP_LOGI("LORA_TEST", "📤 Datos enviados: %s", hex_payload);
-                            } else {
-                                ESP_LOGW("LORA_TEST", "No hay datos del medidor aún; omitiendo envío inicial");
+                            ESP_LOGI("LORA_TEST", "⏲️ Iniciando envío periódico cada 120s (FPort 10)");
+                            while (1) {
+                                char hex_payload[33];
+                                if (build_meter_payload_hex(hex_payload, sizeof(hex_payload))) {
+                                    char cmd[64];
+                                    snprintf(cmd, sizeof(cmd), "AT+SEND=10:%s\r\n", hex_payload);
+                                    lora_uart_write_safe(cmd, 2000);
+                                    ESP_LOGI("LORA_TEST", "📤 Datos enviados: %s", hex_payload);
+                                } else {
+                                    ESP_LOGW("LORA_TEST", "No hay datos del medidor disponibles; reintento en 120s");
+                                }
+                                vTaskDelay(pdMS_TO_TICKS(120000));
                             }
-                            break;
                         } else if(strstr(join_response, "JOIN FAILED") || 
                                  strstr(join_response, "FAIL") ||
                                  strstr(join_response, "RX_TIMEOUT")) {
