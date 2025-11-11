@@ -277,7 +277,7 @@ void lora_ttn_task(void *pvParameters) {
     
     vTaskDelete(NULL);
 }
-
+/*  
 void app_main(void) {
     ESP_LOGI(TAG, "Iniciando aplicación LoRaWAN + TTN");
     
@@ -286,4 +286,4 @@ void app_main(void) {
     
     // Iniciar tarea principal
     xTaskCreate(lora_ttn_task, "lora_ttn_task", 8192, NULL, 5, NULL);
-}
+}*/

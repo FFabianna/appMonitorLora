@@ -3,7 +3,6 @@ idf_component_register(
         "gatewayUart.c"
         "main.c"
         "src/lora_uart/lora_uart_functions.c"   
-        "src/lora_uart/LoraUart.c"
         "src/leds/leds.c"
     INCLUDE_DIRS
         "."

@@ -106,21 +106,21 @@ void lora_ttn_test_task(void *pvParameters) {
     const char* module_config[] = {
         // Configuración básica del módulo
         "AT+ATM=1\r\n",              // Modo AT
-        "AT+CLASS=C\r\n",            // Clase C (recepción continua)
+        "AT+CLASS=C\r\n",            // Clase C (recepción continua) c-->A NUEVO
         "AT+NJM=1\r\n",              // Modo join por OTAA
-        "AT+DR=5\r\n",               // Data Rate 5 (SF7, BW125kHz) - Óptimo para TTN
+        "AT+DR=3\r\n",               // Data Rate 5 (SF7, BW125kHz) - Óptimo para TTN 5->3 NUEVOnuevo  
         "AT+BAND=6\r\n",             // Banda US915 (para Australia/Américas)
-        "AT+CHMASK=0000\r\n",        // Máscara de canales (todos habilitados)
-        "AT+CHE=1:2:3:4:5:6:7:8\r\n", // Habilitar canales específicos
+        "AT+CHMASK=00FF\r\n"          // NUEVOOO
         "AT+CFM=1\r\n",              // Confirmación habilitada
         "AT+RX2DR=8\r\n",            // Data Rate para segunda ventana de recepción
         "AT+TXP=15\r\n",             // Potencia máxima de transmisión (15 dBm)
         "AT+ADAPTIVE_DATA_RATE=0\r\n", // ADR deshabilitado inicialmente
         "AT+RETRIES=5\r\n",          // Número de reintentos
+        
     };
     
     // Aplicar configuración del módulo
-    for(int i = 0; i < 12; i++) {
+    for(int i = 0; i < 10; i++) {
         ESP_LOGI("LORA_TEST", "Configurando módulo: %s", module_config[i]);
         lora_uart_clean_safe(1000);
         lora_uart_write_safe(module_config[i], 2000);
@@ -277,7 +277,8 @@ void lora_ttn_test_task(void *pvParameters) {
             lora_uart_clean_safe(2000);
             
             // Usar JOIN con parámetros optimizados
-            if (lora_uart_write_safe("AT+JOIN=1:1:10:8\r\n", 2000)) {
+            if (lora_uart_write_safe("AT+JOIN=1:0:10:8\r\n", 2000)) {
+                //lora_uart_write_safe("AT+JOIN=1:1:10:8\r\n", 2000)) NUEVO
                 ESP_LOGI("LORA_TEST", "Comando JOIN enviado (auto-join habilitado)...");
                 
                 // Monitorear por más tiempo

@@ -71,7 +71,7 @@ void print_frames_task(void *arg0)
         {
             xSemaphoreTake(xMutex, portMAX_DELAY);
 
-            printf(frameHDLC);            
+            //printf(frameHDLC);            
             vTaskDelay(5 / portTICK_PERIOD_MS);
 
             memset(frameHDLC, 0, MAX_SIZE_FRAME);
