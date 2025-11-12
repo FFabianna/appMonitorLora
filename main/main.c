@@ -348,7 +348,31 @@ void lora_ttn_test_task(void *pvParameters) {
                         if(strstr(join_response, "JOINED")) {
                             ESP_LOGI("LORA_TEST", "🎉🎉🎉 JOIN EXITOSO en intento %d!", join_attempt);
                             join_success = true;
+
+                             // Esperar un poco antes del primer envío
+                            vTaskDelay(5000 / portTICK_PERIOD_MS);
+
+                             // 🔁 Bucle infinito: enviar datos del medidor cada minuto
+                            while (true) {
+                                char hex_payload[33];
+                                if (build_meter_payload_hex(hex_payload, sizeof(hex_payload))) {
+                                    char cmd[64];
+                                    snprintf(cmd, sizeof(cmd), "AT+SEND=1:%s\r\n", hex_payload);
+
+                                    if (lora_uart_write_safe(cmd, 2000)) {
+                                        ESP_LOGI("LORA_TEST", "📤 Enviado a TTN: %s", hex_payload);
+                                    } else {
+                                        ESP_LOGE("LORA_TEST", "❌ Error enviando por LoRa");
+                                    }
+                                } else {
+                                    ESP_LOGW("LORA_TEST", "⚠️ No hay snapshot válido del medidor");
+                                }
+
+                                // Esperar 60 segundos antes del próximo envío
+                                vTaskDelay(pdMS_TO_TICKS(60000));
+                            }
                             
+                            /*
                             // Enviar datos del medidor inmediatamente
                             vTaskDelay(5000 / portTICK_PERIOD_MS);
                             char hex_payload[33];
@@ -362,6 +386,9 @@ void lora_ttn_test_task(void *pvParameters) {
                                 ESP_LOGW("LORA_TEST", "No hay datos del medidor aún; omitiendo envío inicial");
                             }
                             break;
+                            */
+                            
+                            
                         } else if(strstr(join_response, "JOIN FAILED") || 
                                  strstr(join_response, "FAIL") ||
                                  strstr(join_response, "RX_TIMEOUT")) {
