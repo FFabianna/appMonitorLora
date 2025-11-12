@@ -39,7 +39,7 @@ int frameSize;
 TaskHandle_t printTaskHd;
 SemaphoreHandle_t xMutex = NULL;
 uart_config_t uart_config;
-lora_ttn_test_task()
+lora_ttn_test_task();
 // Snapshot compartido de últimas mediciones para LoRa
 static GW_MeterSnapshot s_snapshot;
 static SemaphoreHandle_t s_snapshotMutex = NULL;
