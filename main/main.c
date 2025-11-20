@@ -102,43 +102,8 @@ static uint16_t encode_fp(float value, float scale)
 // Construye payload HEX con: VA,VB,VC, IA,IB,IC, Freq, PtotImp (16 bytes)
 static bool build_meter_payload_hex(char* hex_out, size_t hex_out_size)
 {
-    if (hex_out_size < (16*2 + 1)) return false; // 16 bytes -> 32 hex + NUL
-    GW_MeterSnapshot snap;
-    int tries = 0;
-    while (tries < 10) {
-        if (GW_GetLatestSnapshot(&snap)) break;
-        vTaskDelay(pdMS_TO_TICKS(500));
-        tries++;
-    }
-    if (tries >= 10) return false;
-
-    uint16_t va = encode_fp(snap.voltage[0], 100.0f);
-    uint16_t vb = encode_fp(snap.voltage[1], 100.0f);
-    uint16_t vc = encode_fp(snap.voltage[2], 100.0f);
-    uint16_t ia = encode_fp(snap.current[0], 100.0f);
-    uint16_t ib = encode_fp(snap.current[1], 100.0f);
-    uint16_t ic = encode_fp(snap.current[2], 100.0f);
-    uint16_t fr = encode_fp(snap.frequency , 100.0f);
-    uint16_t pt = encode_fp(snap.active_power_total_import, 10.0f);
-
-    // Escribir 16 bytes en orden fijo (big-endian a nivel hex)
-    char* p = hex_out;
-    u16_to_hex_be(va, p); p += 4;
-    u16_to_hex_be(vb, p); p += 4;
-    u16_to_hex_be(vc, p); p += 4;
-    u16_to_hex_be(ia, p); p += 4;
-    u16_to_hex_be(ib, p); p += 4;
-    u16_to_hex_be(ic, p); p += 4;
-    u16_to_hex_be(fr, p); p += 4;
-    u16_to_hex_be(pt, p); p += 4;
-    *p = '\0';
-    return true;
-}
-
-static bool build_meter_payload_hex_block1(char* hex_out, size_t hex_out_size)
-{
-    // 24 valores x 2 bytes = 48 bytes => 96 HEX chars
-    if (hex_out_size < (48*2 + 1)) return false;
+    // 14 valores → 28 bytes → 56 caracteres HEX + terminador
+    if (hex_out_size < (28*2 + 1)) return false;
 
     GW_MeterSnapshot snap;
     int tries = 0;
@@ -150,107 +115,46 @@ static bool build_meter_payload_hex_block1(char* hex_out, size_t hex_out_size)
     }
     if (tries >= 10) return false;
 
-    uint16_t values[24];
+    // Preparamos los 14 valores a enviar
+    uint16_t v[14];
     int i = 0;
 
     // Voltajes
-    values[i++] = encode_fp(snap.voltage[0], 100);
-    values[i++] = encode_fp(snap.voltage[1], 100);
-    values[i++] = encode_fp(snap.voltage[2], 100);
+    v[i++] = encode_fp(snap.voltage[0], 100.0f);
+    v[i++] = encode_fp(snap.voltage[1], 100.0f);
+    v[i++] = encode_fp(snap.voltage[2], 100.0f);
 
     // Corrientes
-    values[i++] = encode_fp(snap.current[0], 100);
-    values[i++] = encode_fp(snap.current[1], 100);
-    values[i++] = encode_fp(snap.current[2], 100);
+    v[i++] = encode_fp(snap.current[0], 100.0f);
+    v[i++] = encode_fp(snap.current[1], 100.0f);
+    v[i++] = encode_fp(snap.current[2], 100.0f);
 
     // Frecuencia
-    values[i++] = encode_fp(snap.frequency, 100);
+    v[i++] = encode_fp(snap.frequency, 100.0f);
 
     // Power factor A/B/C
-    values[i++] = encode_fp(snap.power_factor[0], 100);
-    values[i++] = encode_fp(snap.power_factor[1], 100);
-    values[i++] = encode_fp(snap.power_factor[2], 100);
+    v[i++] = encode_fp(snap.power_factor[0], 100.0f);
+    v[i++] = encode_fp(snap.power_factor[1], 100.0f);
+    v[i++] = encode_fp(snap.power_factor[2], 100.0f);
 
-    // Potencias totales
-    values[i++] = encode_fp(snap.active_power_total_import, 10);
-    values[i++] = encode_fp(snap.active_power_total_export, 10);
-    values[i++] = encode_fp(snap.reactive_power_total_import, 10);
-    values[i++] = encode_fp(snap.reactive_power_total_export, 10);
-
-    // Apparent total
-    values[i++] = encode_fp(snap.apparent_power_total, 10);
-
-    // Reactivos QI–QIV
-    values[i++] = encode_fp(snap.reactive_total_QI, 10);
-    values[i++] = encode_fp(snap.reactive_total_QII, 10);
-    values[i++] = encode_fp(snap.reactive_total_QIII, 10);
-    values[i++] = encode_fp(snap.reactive_total_QIV, 10);
-
-    // Angulos
-    values[i++] = encode_fp(snap.voltage_angle_BA, 10);
-    values[i++] = encode_fp(snap.voltage_angle_CA, 10);
-
-    // Firmware y Serial → puedes agregarlo si quieres, por ahora lo dejo fuera
+    // Totales (energia activa, reactiva, aparente)
+    v[i++] = encode_fp(snap.active_power_total_import, 10.0f);
+    v[i++] = encode_fp(snap.active_power_total_export, 10.0f);
+    v[i++] = encode_fp(snap.reactive_power_total_import, 10.0f);
+    v[i++] = encode_fp(snap.reactive_power_total_export, 10.0f);
+    v[i++] = encode_fp(snap.apparent_power_total, 10.0f);
 
     // Convertir a HEX
     char* p = hex_out;
+
     for (int k = 0; k < i; k++) {
-        u16_to_hex_be(values[k], p);
+        u16_to_hex_be(v[k], p);
         p += 4;
     }
+
     *p = '\0';
     return true;
 }
-
-
-static bool build_meter_payload_hex_block2(char* hex_out, size_t hex_out_size)
-{
-    // 20 valores x 2 bytes = 40 bytes => 80 HEX chars
-    if (hex_out_size < (40*2 + 1)) return false;
-
-    GW_MeterSnapshot snap;
-    if (!GW_GetLatestSnapshot(&snap)) return false;
-
-    uint16_t values[20];
-    int i = 0;
-
-    // Fase A
-    values[i++] = encode_fp(snap.active_power_import_A, 10);
-    values[i++] = encode_fp(snap.active_power_export_A, 10);
-    values[i++] = encode_fp(snap.reactive_power_import_A, 10);
-    values[i++] = encode_fp(snap.reactive_power_export_A, 10);
-
-    // Fase B
-    values[i++] = encode_fp(snap.active_power_import_B, 10);
-    values[i++] = encode_fp(snap.active_power_export_B, 10);
-    values[i++] = encode_fp(snap.reactive_power_import_B, 10);
-    values[i++] = encode_fp(snap.reactive_power_export_B, 10);
-
-    // Fase C
-    values[i++] = encode_fp(snap.active_power_import_C, 10);
-    values[i++] = encode_fp(snap.active_power_export_C, 10);
-    values[i++] = encode_fp(snap.reactive_power_import_C, 10);
-    values[i++] = encode_fp(snap.reactive_power_export_C, 10);
-
-    // Añade expansión si quieres…
-
-    char* p = hex_out;
-    for (int k = 0; k < i; k++) {
-        u16_to_hex_be(values[k], p);
-        p += 4;
-    }
-    *p = '\0';
-    return true;
-}
-
-
-
-
-
-
-
-
-
 
 
 void lora_ttn_test_task(void *pvParameters) {
@@ -363,27 +267,19 @@ void lora_ttn_test_task(void *pvParameters) {
                         // 🔁 Bucle infinito de envío cada 60 s
                         while (true) {
                             lora_uart_clean_safe(1000);
-                           char payload1[200];
-                            char payload2[200];
-
-                            if (build_meter_payload_hex_block1(payload1, sizeof(payload1))) {
-                                char cmd1[300];
-                                snprintf(cmd1, sizeof(cmd1), "AT+SEND=1:%s\r\n", payload1);
-                                lora_uart_write_safe(cmd1, 2000);
-                                ESP_LOGI("LORA_TEST", "📤 Payload 1 enviado (%d bytes)", strlen(payload1)/2);
-                            }
-
-                            vTaskDelay(pdMS_TO_TICKS(2000)); // pequeña pausa
-
-                            if (build_meter_payload_hex_block2(payload2, sizeof(payload2))) {
-                                char cmd2[300];
-                                snprintf(cmd2, sizeof(cmd2), "AT+SEND=2:%s\r\n", payload2);
-                                lora_uart_write_safe(cmd2, 2000);
-                                ESP_LOGI("LORA_TEST", "📤 Payload 2 enviado (%d bytes)", strlen(payload2)/2);
-                            }else {
+                            char hex_payload[33];
+                            if (build_meter_payload_hex(hex_payload, sizeof(hex_payload))) {
+                                char cmd[64];
+                                snprintf(cmd, sizeof(cmd), "AT+SEND=1:%s\r\n", hex_payload);
+                                if (lora_uart_write_safe(cmd, 2000)) {
+                                    ESP_LOGI("LORA_TEST", "📤 Enviado a TTN: %s", hex_payload);
+                                } else {
+                                    ESP_LOGE("LORA_TEST", "❌ Error enviando por LoRa");
+                                }
+                            } else {
                                 ESP_LOGW("LORA_TEST", "⚠️ No hay snapshot válido del medidor");
                             }
-                            vTaskDelay(pdMS_TO_TICKS(120000));  // 1 minuto
+                            vTaskDelay(pdMS_TO_TICKS(60000));  // 1 minuto
                         }
                     }
                 }
