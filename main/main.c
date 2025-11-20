@@ -102,7 +102,7 @@ static uint16_t encode_fp(float value, float scale)
 // Construye payload HEX con: VA,VB,VC, IA,IB,IC, Freq, PtotImp (16 bytes)
 static bool build_meter_payload_hex(char* hex_out, size_t hex_out_size)
 {
-    // 14 valores → 28 bytes → 56 caracteres HEX + terminador
+    // 14 valores → 28 bytes → 56 hex + '\0'
     if (hex_out_size < (28*2 + 1)) return false;
 
     GW_MeterSnapshot snap;
@@ -113,9 +113,11 @@ static bool build_meter_payload_hex(char* hex_out, size_t hex_out_size)
         vTaskDelay(pdMS_TO_TICKS(500));
         tries++;
     }
-    if (tries >= 10) return false;
+    if (tries >= 10) {
+        ESP_LOGW("LORA_TEST", "⚠️ No hay snapshot válido del medidor");
+        return false;
+    }
 
-    // Preparamos los 14 valores a enviar
     uint16_t v[14];
     int i = 0;
 
@@ -137,24 +139,22 @@ static bool build_meter_payload_hex(char* hex_out, size_t hex_out_size)
     v[i++] = encode_fp(snap.power_factor[1], 100.0f);
     v[i++] = encode_fp(snap.power_factor[2], 100.0f);
 
-    // Totales (energia activa, reactiva, aparente)
+    // Totales
     v[i++] = encode_fp(snap.active_power_total_import, 10.0f);
     v[i++] = encode_fp(snap.active_power_total_export, 10.0f);
     v[i++] = encode_fp(snap.reactive_power_total_import, 10.0f);
     v[i++] = encode_fp(snap.reactive_power_total_export, 10.0f);
     v[i++] = encode_fp(snap.apparent_power_total, 10.0f);
 
-    // Convertir a HEX
     char* p = hex_out;
-
     for (int k = 0; k < i; k++) {
         u16_to_hex_be(v[k], p);
         p += 4;
     }
-
     *p = '\0';
     return true;
 }
+
 
 
 void lora_ttn_test_task(void *pvParameters) {
@@ -267,9 +267,9 @@ void lora_ttn_test_task(void *pvParameters) {
                         // 🔁 Bucle infinito de envío cada 60 s
                         while (true) {
                             lora_uart_clean_safe(1000);
-                            char hex_payload[33];
+                            char hex_payload[60];
                             if (build_meter_payload_hex(hex_payload, sizeof(hex_payload))) {
-                                char cmd[64];
+                                char cmd[96];
                                 snprintf(cmd, sizeof(cmd), "AT+SEND=1:%s\r\n", hex_payload);
                                 if (lora_uart_write_safe(cmd, 2000)) {
                                     ESP_LOGI("LORA_TEST", "📤 Enviado a TTN: %s", hex_payload);
